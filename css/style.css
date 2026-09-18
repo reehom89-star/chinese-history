@@ -254,6 +254,31 @@ body {
 .btn-main:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
 .btn-main:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
+/* ============ 学习小助手（感知→分析→自动反馈） ============ */
+.assistant { margin-bottom: 24px; }
+.as-card {
+  background: linear-gradient(150deg, #FFF3C4, #FFE9A8);
+  border: 3px solid var(--ink); border-radius: var(--radius-scratch);
+  box-shadow: var(--shadow-hard); padding: 18px 22px;
+  animation: cardIn .5s both;
+}
+.as-head { font-size: 20px; font-weight: 900; color: var(--ink); letter-spacing: 1px; margin-bottom: 12px; }
+.as-empty { font-size: 14.5px; color: #6F5F53; font-weight: 600; line-height: 1.8; }
+.as-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.as-chip {
+  font-size: 13px; font-weight: 700; background: #fff;
+  border: 2px solid var(--ink); border-radius: 999px; padding: 4px 12px;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.as-chip b { color: var(--red); }
+.as-advice { font-size: 14.5px; line-height: 1.85; color: var(--ink); font-weight: 600; margin-bottom: 14px; }
+.as-weak { color: var(--red); }
+.as-link { color: var(--blue); cursor: pointer; text-decoration: underline; font-weight: 800; }
+.as-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.as-btn { padding: 8px 16px; font-size: 14px; }
+.wrong-btn { background: #FFF0F3 !important; border-color: var(--red) !important; color: var(--red) !important; }
+.wrong-btn.active { background: var(--red) !important; color: #fff !important; }
+
 /* ============ 侧边快速导航 ============ */
 .side-nav {
   position: fixed; right: 14px; top: 50%; transform: translateY(-50%);

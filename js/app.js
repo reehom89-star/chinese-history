@@ -46,6 +46,7 @@
   ];
   function renderHome() {
     renderSideNav();
+    renderAssistant();
     $('#home-list').innerHTML = STAGES.map((s, i) => `
       <div class="tl-item" id="tl-${s.id}" onclick="App.openStage('${s.id}')">
         <div class="tl-marker"><span class="tl-dot" style="--c:${esc(s.color)}"></span><span class="tl-seq">${i + 1}</span></div>
@@ -74,6 +75,7 @@
     const s = window.STAGE_BY_ID[id];
     if (!s) return;
     currentStageId = id;
+    learnRecordVisit(id); // 感知：记录本次浏览
     const idx = STAGES.findIndex(x => x.id === id);
     const prev = STAGES[idx - 1], next = STAGES[idx + 1];
     showView('stage');
@@ -542,6 +544,109 @@
     }
   }
 
+  /* ================= 学习小助手：感知 → 分析 → 自动反馈 ================= */
+  const LEARN_KEY = 'history_learning_v1';
+  function learnData() {
+    try {
+      const d = JSON.parse(localStorage.getItem(LEARN_KEY));
+      if (d && Array.isArray(d.answers)) {
+        d.visits = d.visits || {};
+        return d;
+      }
+    } catch (e) { /* ignore */ }
+    return { answers: [], visits: {}, start: Date.now() };
+  }
+  function learnSave(d) {
+    try { localStorage.setItem(LEARN_KEY, JSON.stringify(d)); } catch (e) { /* ignore */ }
+  }
+  /* 感知①：记录一次答题结果 */
+  function learnRecordAnswer(stageId, qText, correct) {
+    const d = learnData();
+    d.answers.push({ stage: stageId, q: qText, ok: !!correct, t: Date.now() });
+    if (d.answers.length > 800) d.answers = d.answers.slice(-800);
+    learnSave(d);
+  }
+  /* 感知②：记录一次朝代浏览 */
+  function learnRecordVisit(stageId) {
+    const d = learnData();
+    d.visits[stageId] = (d.visits[stageId] || 0) + 1;
+    learnSave(d);
+  }
+  /* 分析：各朝代掌握度、薄弱点、错题本 */
+  function learnAnalyze() {
+    const d = learnData();
+    const byStage = {};
+    d.answers.forEach(a => {
+      const b = byStage[a.stage] || (byStage[a.stage] = { total: 0, correct: 0 });
+      b.total++;
+      if (a.ok) b.correct++;
+    });
+    const lastOf = {};
+    d.answers.forEach(a => { lastOf[a.stage + '|' + a.q] = a; });
+    const wrong = Object.keys(lastOf).map(k => lastOf[k]).filter(a => !a.ok);
+    const rows = Object.keys(byStage).map(id => ({
+      id, total: byStage[id].total, correct: byStage[id].correct,
+      rate: byStage[id].correct / byStage[id].total
+    })).sort((a, b) => a.rate - b.rate);
+    const total = d.answers.length;
+    const correct = d.answers.filter(a => a.ok).length;
+    return {
+      rows, wrong, total, correct,
+      rate: total ? correct / total : 0,
+      weak: rows[0] || null,
+      best: rows[rows.length - 1] || null,
+      visits: d.visits
+    };
+  }
+
+  /* 自动反馈①：首页学习小助手面板 */
+  function renderAssistant() {
+    const box = $('#assistant');
+    if (!box) return;
+    const ana = learnAnalyze();
+    const visited = Object.keys(ana.visits).length;
+    if (!ana.total && !visited) {
+      box.innerHTML = `
+        <div class="as-card">
+          <div class="as-head">🤖 学习小助手</div>
+          <div class="as-empty">还没有学习记录～ 先去挑战几道题、逛逛各个朝代，我就能自动为你分析学习情况、推荐复习内容啦！</div>
+        </div>`;
+      return;
+    }
+    const rate = Math.round(ana.rate * 100);
+    const weakest = ana.weak && ana.weak.total >= 2 ? window.STAGE_BY_ID[ana.weak.id] : null;
+    const bestS = ana.best && ana.best.total >= 2 ? window.STAGE_BY_ID[ana.best.id] : null;
+    let advice;
+    if (!ana.total) {
+      advice = `你已经探索过 <b>${visited}</b> 个朝代，去<a class="as-link" onclick="App.showQuiz()">做几道题</a>，我就能分析你的掌握情况～`;
+    } else if (weakest && ana.weak.rate < 0.6) {
+      advice = `我发现你在 <b class="as-weak">${esc(weakest.emoji + ' ' + weakest.name)}</b> 的正确率只有 <b class="as-weak">${Math.round(ana.weak.rate * 100)}%</b>，建议先回去复习这个朝代的故事和成语哦～`;
+    } else if (weakest && ana.weak.rate < 1) {
+      advice = `整体表现很棒！<b class="as-weak">${esc(weakest.emoji + ' ' + weakest.name)}</b> 的正确率（${Math.round(ana.weak.rate * 100)}%）相对最低，可以再巩固一下～`;
+    } else {
+      advice = `太厉害了！你答过的题目<strong>全部正确</strong> 🎉 去挑战更多朝代，或者试试综合挑战保持状态吧！`;
+    }
+    box.innerHTML = `
+      <div class="as-card">
+        <div class="as-head">🤖 学习小助手</div>
+        <div class="as-stats">
+          <span class="as-chip">📝 累计答题 <b>${ana.total}</b> 题</span>
+          <span class="as-chip">🎯 正确率 <b>${rate}%</b></span>
+          <span class="as-chip">🧭 探索过 <b>${visited}</b> 个朝代</span>
+          ${bestS ? `<span class="as-chip">🏆 最擅长 <b>${esc(bestS.name)}</b></span>` : ''}
+        </div>
+        <div class="as-advice">${advice}</div>
+        <div class="as-actions">
+          ${weakest ? `<button class="btn-main as-btn" onclick="App.goWeak('${weakest.id}')">📖 去复习 ${esc(weakest.name)}</button>` : ''}
+          ${ana.wrong.length ? `<button class="btn-ghost as-btn" onclick="App.quizMode('wrong')">✏️ 错题重练（${ana.wrong.length} 题）</button>` : ''}
+          ${ana.total >= 5 ? `<button class="btn-ghost as-btn" onclick="App.showQuiz()">🎯 智能挑战</button>` : ''}
+        </div>
+      </div>`;
+  }
+  function goWeak(stageId) {
+    openStage(stageId);
+  }
+
   /* ---------- 问答 ---------- */
   function renderQuiz() {
     buildQuizFilters();
@@ -549,9 +654,14 @@
   }
 
   function buildQuizFilters() {
-    const all = [{ id: 'all', name: '🌟 综合挑战' }].concat(STAGES.map(s => ({ id: s.id, name: s.emoji + ' ' + s.name })));
-    $('#quiz-modes').innerHTML = all.map(m => `
+    const all = [{ id: 'all', name: '🌟 智能挑战' }].concat(STAGES.map(s => ({ id: s.id, name: s.emoji + ' ' + s.name })));
+    const ana = learnAnalyze();
+    let html = all.map(m => `
       <button class="filter-btn ${m.id === 'all' ? 'active' : ''}" data-qmode="${m.id}" onclick="App.quizMode('${m.id}')">${esc(m.name)}</button>`).join('');
+    if (ana.wrong.length) {
+      html += `<button class="filter-btn wrong-btn" data-qmode="wrong" onclick="App.quizMode('wrong')">✏️ 错题重练（${ana.wrong.length}）</button>`;
+    }
+    $('#quiz-modes').innerHTML = html;
   }
 
   function quizMode(id) {
@@ -560,9 +670,46 @@
   }
 
   function startQuiz(mode) {
-    const stages = mode === 'all' ? STAGES : [window.STAGE_BY_ID[mode]];
-    const questions = [];
-    stages.forEach(s => s.quiz.forEach(q => questions.push({ ...q, stageId: s.id, stageName: s.name })));
+    let questions = [];
+    if (mode === 'wrong') {
+      // 错题重练：从错题本重建题目
+      learnAnalyze().wrong.forEach(a => {
+        const s = window.STAGE_BY_ID[a.stage];
+        if (!s) return;
+        const q = s.quiz.find(x => x.q === a.q);
+        if (q) questions.push({ ...q, stageId: s.id, stageName: s.name });
+      });
+      if (!questions.length) return;
+    } else if (mode === 'all') {
+      // 智能挑战：按掌握度加权抽题（薄弱朝代出题更多）
+      const ana = learnAnalyze();
+      const rateOf = {};
+      ana.rows.forEach(r => { rateOf[r.id] = r.rate; });
+      if (ana.total >= 8 && ana.rows.length >= 2) {
+        const pool = STAGES.map(s => ({ s, w: Math.max(1, Math.round((1.1 - (rateOf[s.id] !== undefined ? rateOf[s.id] : 0.6)) * 10)) }));
+        const seen = {};
+        const target = 12;
+        let guard = 0;
+        while (questions.length < target && guard < 300) {
+          guard++;
+          const totalW = pool.reduce((a, p) => a + p.w, 0);
+          let r = Math.random() * totalW, pick = pool[0].s;
+          for (const p of pool) { r -= p.w; if (r <= 0) { pick = p.s; break; } }
+          const q = pick.quiz[Math.floor(Math.random() * pick.quiz.length)];
+          const key = pick.id + '|' + q.q;
+          if (seen[key]) continue;
+          seen[key] = 1;
+          questions.push({ ...q, stageId: pick.id, stageName: pick.name });
+        }
+      }
+      if (!questions.length) {
+        STAGES.forEach(s => s.quiz.forEach(q => questions.push({ ...q, stageId: s.id, stageName: s.name })));
+      }
+    } else {
+      const s = window.STAGE_BY_ID[mode];
+      if (!s) return;
+      s.quiz.forEach(q => questions.push({ ...q, stageId: s.id, stageName: s.name }));
+    }
     if (!questions.length) return;
     // 打乱顺序
     for (let i = questions.length - 1; i > 0; i--) {
@@ -571,6 +718,7 @@
     }
     quizState = { questions, idx: 0, score: 0, correct: 0, mode };
     $('#quiz-result').classList.remove('show');
+    $('#quiz-result').innerHTML = '';
     $('#quiz-card-wrap').style.display = '';
     showQuestion();
   }
@@ -600,6 +748,7 @@
     const q = st.questions[st.idx];
     if (st.locked) return;
     st.locked = true;
+    learnRecordAnswer(q.stageId, q.q, i === q.answer); // 感知：记录本次作答
     const opts = $$('#quiz-card .q-opt');
     opts.forEach(b => b.classList.add('disabled'));
     if (i === q.answer) {
@@ -747,6 +896,7 @@
     goHome: () => showView('home'),
     openStage,
     scrollToStage,
+    goWeak,
     openMap: (stageId) => showView('map', { stage: stageId }),
     showMap: () => showView('map', {}),
     showQuiz: () => showView('quiz'),
