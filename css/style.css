@@ -128,7 +128,7 @@ body {
 
 /* ============ 朝代时间轴条 ============ */
 .dynasty-bar {
-  display: flex; align-items: stretch; height: 52px;
+  display: flex; align-items: start; height: 52px;
   border-radius: var(--radius-scratch); overflow: hidden;
   margin-bottom: 26px; border: 3px solid var(--ink);
   box-shadow: var(--shadow-hard); background: #fff;
@@ -489,8 +489,8 @@ body {
 
 /* ============ 地图视图 ============ */
 .map-view { max-width: 1150px; margin: 0 auto; padding: 26px 20px 70px; }
-.map-layout { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
-@media (max-width: 860px) { .map-layout { grid-template-columns: 1fr; } }
+.map-layout { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: stretch; }
+@media (max-width: 860px) { .map-layout { grid-template-columns: 1fr; } .map-side { height: auto; min-height: 0; overflow: visible; } .map-side .spot-list { max-height: 280px; } }
 .map-box {
   background: #fff; border-radius: var(--radius-scratch); padding: 18px;
   border: 3px solid var(--ink); box-shadow: var(--shadow-hard);
@@ -546,12 +546,21 @@ body {
 .map-legend { margin-top: 12px; font-size: 12.5px; color: var(--text-light); display: flex; gap: 14px; flex-wrap: wrap; font-weight: 600; }
 .map-legend .lg { display: flex; align-items: center; gap: 6px; }
 .dynasty-note-tag { font-size: 12.5px; font-weight: 800; padding: 4px 13px; border-radius: 999px; border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
-.regime-label {
-  font-size: 15px; font-weight: 900; text-anchor: middle;
-  paint-order: stroke; stroke: rgba(255,255,255,.95); stroke-width: 4px;
+.regime-label,
+.spot-label,
+.route-stop-label,
+.route-end-label {
+  font-weight: 800;
+  text-anchor: middle;
   pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(255, 248, 231, .96);
+  fill: var(--ink);
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
-.spot-label { font-size: 11px; fill: #fff; font-weight: 800; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--ink); stroke-width: 3px; }
+.regime-label, .route-end-label { font-weight: 900; }
+.route-stop-label { opacity: 0; }
 .map-side h3 { font-size: 17px; color: var(--ink); margin-bottom: 10px; letter-spacing: 1px; font-weight: 900; }
 .spot-list { display: flex; flex-direction: column; gap: 10px; max-height: 560px; overflow: auto; }
 .spot-item {
@@ -649,3 +658,181 @@ body {
   .search-result { width: 280px; }
   .stage-hero .sh-inner { padding: 16px; }
 }
+
+.map-snaps { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center; }
+.map-box svg { width:100%; height:auto; display:block; }
+.map-canvas { position:relative; border:3px solid var(--ink); border-radius:18px; overflow:hidden; background:#F7EFE0; box-shadow:4px 4px 0 var(--ink); }
+.map-canvas svg { width:100%; height:auto; display:block; background:#F7EFE0; cursor:grab; }
+.map-zoom-btns { position:absolute; right:12px; top:12px; z-index:3; display:flex; flex-direction:column; gap:6px; }
+.map-zoom-btns button { width:36px; height:36px; border:2px solid var(--ink); border-radius:10px; background:#fff; font-size:18px; font-weight:900; cursor:pointer; box-shadow:2px 2px 0 var(--ink); }
+.map-zoom-btns button:hover { background:var(--yellow); }
+.map-hint { position:absolute; left:12px; bottom:10px; font-size:12px; font-weight:700; color:#6F5F53; background:rgba(255,248,231,.88); padding:3px 10px; border-radius:999px; border:1.5px solid var(--ink); }
+.insight-card { margin-top:12px; background:#FFF8E7; border:3px solid var(--ink); border-radius:16px; padding:14px 16px; box-shadow:3px 3px 0 var(--ink); }
+.insight-card h4 { margin:0 0 8px; font-size:15px; }
+.insight-card p, .insight-card li { font-size:13px; line-height:1.7; color:var(--text-light); font-weight:600; }
+.ins-year { color:var(--red) !important; font-weight:800 !important; }
+.ins-ext { margin:6px 0 8px 18px; }
+.ins-src { font-size:12px !important; opacity:.85; }
+.museum-h { font-size:14px; margin:16px 0 8px; }
+.museum-item { display:block; text-decoration:none; color:inherit; border:2px solid var(--ink); border-radius:14px; padding:10px 12px; margin-bottom:8px; background:#fff; box-shadow:2px 2px 0 var(--ink); }
+.museum-item:hover { background:#FFF3D6; }
+.museum-link { display:inline-block; margin-top:8px; background:var(--red); color:#fff; padding:8px 14px; border-radius:999px; text-decoration:none; font-weight:800; border:2px solid var(--ink); }
+.museum-pin text { pointer-events:none; }
+.museum-view { max-width:1150px; margin:0 auto; padding:26px 20px 70px; position:relative; z-index:1; }
+.museum-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; margin-top:16px; }
+.museum-card { background:#fff; border:3px solid var(--ink); border-radius:18px; padding:18px 16px 16px; box-shadow:4px 4px 0 var(--ink); }
+.museum-card h3 { margin:0 0 6px; font-size:17px; color:var(--ink); }
+.museum-card p { font-size:13px; line-height:1.7; color:var(--text-light); font-weight:600; margin:8px 0 12px; }
+.mc-badge { font-size:28px; }
+.mc-city { font-size:12.5px; font-weight:800; color:#A55E00; }
+.mc-stage { font-size:12px; margin-top:4px; font-weight:700; color:var(--text-light); }
+/* ===== 小框按钮统一对齐 ===== */
+.nav,
+.map-filters,
+.map-snaps,
+.map-routes,
+.quiz-mode,
+.as-actions,
+.as-stats,
+.tl-stats,
+.back-row,
+.map-legend,
+.museum-view .map-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.nav { margin-left: auto; gap: 6px; }
+.map-legend { gap: 14px; }
+
+.filter-btn,
+.as-chip,
+.sc-chip,
+.as-btn,
+.btn-ghost,
+.nav a,
+.dynasty-note-tag,
+.map-routes .route-label,
+.map-snaps .route-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 36px;
+  line-height: 1.15;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.filter-btn,
+.as-btn,
+.btn-ghost {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.nav a {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.as-chip,
+.sc-chip {
+  padding: 4px 12px;
+  min-height: 28px;
+}
+
+.btn-main.as-btn {
+  min-height: 36px;
+  padding: 6px 16px;
+  font-size: 14px;
+  border-radius: 14px;
+  letter-spacing: 0;
+}
+
+.search-box input {
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.map-zoom-btns button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.story-grid,
+.people-grid,
+.cy-grid,
+.tile-grid,
+.museum-grid,
+.wuba-grid,
+.qixiong-grid,
+.funfacts {
+  align-items: stretch;
+}
+.story-card,
+.person-card,
+.cy-card,
+.tile,
+.museum-card,
+.wuba-card,
+.qixiong-card,
+.fun-card {
+  height: 100%;
+}
+.museum-card,
+.wuba-card,
+.qixiong-card,
+.tile,
+.cy-card {
+  display: flex;
+  flex-direction: column;
+}
+.museum-card .museum-link,
+.wuba-card .wb-idiom,
+.qixiong-card .qx-end {
+  margin-top: auto;
+}
+
+.map-side { background:#fff; border-radius: var(--radius-scratch); padding:18px; border:3px solid var(--ink); box-shadow: var(--shadow-hard); display:flex; flex-direction:column; min-height:0; }
+.map-side .spot-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.map-zoom-btns button.map-reset-btn { width:auto; min-width:36px; padding:0 8px; font-size:12px; letter-spacing:0; line-height:1; }
+.map-spot .spot-label { opacity:0; pointer-events:none; }
+.map-spot:hover .spot-label, .map-spot.active .spot-label, .map-spot.show-label .spot-label { opacity:1; }
+.insight-card { padding:10px 12px; margin-top:8px; }
+.map-box { padding:14px; }
+.spot-item .si-desc { display:none; }
+.spot-item.active .si-desc { display:block; margin-top:4px; }
+.spot-item { padding:8px 10px; }
+.insight-card h4 { margin:0 0 4px; font-size:14px; }
+.map-legend { margin-top:8px; }
+.map-spot.zoomed-label .spot-label { opacity:1; }
+.map-canvas svg { text-rendering: geometricPrecision; }
+.route-stop:hover .route-stop-label { opacity: 1 !important; }
+
+.map-canvas svg, .map-canvas svg text { user-select: none; -webkit-user-select: none; -moz-user-select: none; }
+.map-canvas svg text, .map-canvas svg title { pointer-events: none !important; }
+.map-side { height: 0; min-height: 100%; overflow: hidden; }
+.spot-entry-card {
+  background: #FFFDF0; border: 3px solid var(--ink); border-radius: 16px;
+  padding: 12px 14px; margin: 0 0 12px; box-shadow: var(--shadow-hard-sm);
+}
+.se-kicker { font-size: 11px; font-weight: 800; color: #A55E00; letter-spacing: 1px; margin-bottom: 4px; }
+.se-name { font-size: 18px; font-weight: 900; color: var(--ink); letter-spacing: 1px; margin: 0 0 4px; }
+.se-meta { font-size: 12px; font-weight: 700; color: var(--text-light); margin-bottom: 8px; }
+.se-desc { font-size: 13.5px; line-height: 1.75; color: var(--ink); font-weight: 600; margin: 0 0 10px; }
+.se-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.se-btn { min-height: 32px; padding: 4px 10px; font-size: 12.5px; }
+.se-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 32px; padding: 4px 10px; border-radius: 12px;
+  border: 2px solid var(--ink); background: #fff; color: var(--ink);
+  text-decoration: none; font-size: 12.5px; font-weight: 800;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.se-link:hover { background: var(--yellow); }

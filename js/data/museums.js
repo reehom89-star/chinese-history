@@ -1,0 +1,25 @@
+/* 国内知名博物馆（官方网站）。按朝代关联，点地图图标可跳转官网。 */
+window.MUSEUMS = [
+  { id: 'liangzhu', name: '良渚博物院', city: '浙江 · 杭州', lng: 119.98, lat: 30.39, url: 'https://www.lzmuseum.cn/', stages: ['stage01'], desc: '实证中华五千年文明的圣地。玉琮、古城与水利系统，让神话传说时代和考古发现对上了号。' },
+  { id: 'erlitou', name: '二里头夏都遗址博物馆', city: '河南 · 洛阳', lng: 112.70, lat: 34.70, url: 'https://www.erlitou.cn/', stages: ['stage02'], desc: '夏商之际的都邑遗址。青铜爵、宫城和网格化道路，是了解早期王朝的第一站。' },
+  { id: 'yinxu', name: '殷墟博物馆', city: '河南 · 安阳', lng: 114.31, lat: 36.12, url: 'https://www.ayyx.com/', stages: ['stage02'], desc: '商代晚期都城。甲骨文、妇好墓和青铜重器都在这里出土，汉字的源头可以亲眼看见。' },
+  { id: 'sanxingdui', name: '三星堆博物馆', city: '四川 · 广汉', lng: 104.22, lat: 31.00, url: 'https://www.sxd.cn/', stages: ['stage02','stage03'], desc: '古蜀文明的惊世发现。青铜神树、纵目面具，说明中华文明很早就多元一体。' },
+  { id: 'jinsha', name: '金沙遗址博物馆', city: '四川 · 成都', lng: 104.01, lat: 30.68, url: 'https://www.jinshasitemuseum.com/', stages: ['stage02','stage03'], desc: '古蜀金沙。太阳神鸟金饰是中国文化遗产标志，和三星堆前后相承。' },
+  { id: 'henan', name: '河南博物院', city: '河南 · 郑州', lng: 113.67, lat: 34.78, url: 'https://www.chnmus.net/', stages: ['stage02','stage03','stage04','stage08'], desc: '中原文物重镇。贾湖骨笛、莲鹤方壶、北宋汝瓷，把夏商周到宋的中原文明串成一条线。' },
+  { id: 'hubei', name: '湖北省博物馆', city: '湖北 · 武汉', lng: 114.36, lat: 30.56, url: 'https://www.hbww.org.cn/', stages: ['stage03','stage06'], desc: '曾侯乙编钟的家。听一次先秦礼乐，再看楚文化，春秋战国就不再只是课本上的国名。' },
+  { id: 'hunan', name: '湖南博物院', city: '湖南 · 长沙', lng: 112.99, lat: 28.21, url: 'https://www.hnmuseum.com/', stages: ['stage03','stage05'], desc: '马王堆汉墓闻名世界。素纱襌衣、T形帛画和辛追夫人，是了解汉朝生活的第一手材料。' },
+  { id: 'bmy', name: '秦始皇帝陵博物院', city: '陕西 · 西安', lng: 109.26, lat: 34.38, url: 'https://www.bmy.com.cn/', stages: ['stage04'], desc: '兵马俑与秦始皇陵。统一帝国的军阵、兵器和彩绘，把书同文、车同轨变成看得见的历史。' },
+  { id: 'sxhm', name: '陕西历史博物馆', city: '陕西 · 西安', lng: 108.96, lat: 34.22, url: 'https://www.sxhm.com/', stages: ['stage02','stage04','stage05','stage07'], desc: '古都西安的文明宝库。西周青铜、汉唐金银器、壁画和丝绸之路文物最集中。' },
+  { id: 'dha', name: '敦煌研究院', city: '甘肃 · 敦煌', lng: 94.67, lat: 40.14, url: 'https://www.dha.ac.cn/', stages: ['stage05','stage06','stage07'], desc: '莫高窟是丝绸之路上的艺术殿堂。从十六国到唐宋元，壁画和彩塑记录了中西文明的相遇。' },
+  { id: 'njm', name: '南京博物院', city: '江苏 · 南京', lng: 118.82, lat: 32.04, url: 'https://www.njmuseum.com/', stages: ['stage06','stage10'], desc: '六朝古都的省级大馆。从江南文明到明代都城，南京作为古都的地层在这里摊开。' },
+  { id: 'liaoning', name: '辽宁省博物馆', city: '辽宁 · 沈阳', lng: 123.46, lat: 41.80, url: 'https://www.lnmuseum.com.cn/', stages: ['stage08','stage09'], desc: '辽金元文物重镇。看契丹、女真与中原的交融，宋辽夏金不再只是地图上的色块。' },
+  { id: 'shanghaimuseum', name: '上海博物馆', city: '上海', lng: 121.48, lat: 31.23, url: 'https://www.shanghaimuseum.net/', stages: ['stage03','stage08','stage10'], desc: '青铜、陶瓷、书画和印章的重镇。想一次看懂中国艺术的长河，上博是最合适的入口之一。' },
+  { id: 'greatwall', name: '中国长城博物馆', city: '北京 · 延庆', lng: 116.02, lat: 40.36, url: 'https://www.badaling.cn/', stages: ['stage04','stage10'], desc: '在八达岭脚下讲长城。重点分清：今天游客走的大多是明长城，秦长城更靠北，位置并不重合。' },
+  { id: 'cmh', name: '中国航海博物馆', city: '上海 · 临港', lng: 121.92, lat: 30.90, url: 'https://www.cmh.org.cn/', stages: ['stage10'], desc: '看海的中国。从水密隔舱到郑和下西洋，把扬帆下西洋放进真实的航海技术里。' },
+  { id: 'dpm', name: '故宫博物院', city: '北京', lng: 116.40, lat: 39.92, url: 'https://www.dpm.org.cn/', stages: ['stage10','stage11','stage12'], desc: '明清紫禁城。宫殿建筑、宫廷文物和故宫藏画，是读懂帝制晚期中国的最直观课堂。' },
+  { id: 'chnmuseum', name: '中国国家博物馆', city: '北京', lng: 116.40, lat: 39.91, url: 'https://www.chnmuseum.cn/', stages: ['stage01','stage02','stage03','stage04','stage05','stage12'], desc: '在天安门广场东侧，通史陈列从远古讲到当代。遇到这个朝代到底什么样，优先来这里对照实物。' },
+  { id: 'xinjiang', name: '新疆维吾尔自治区博物馆', city: '新疆 · 乌鲁木齐', lng: 87.62, lat: 43.82, url: 'https://www.xjmuseum.com/', stages: ['stage05','stage07','stage11'], desc: '丝绸之路的地下档案。看汉唐文书、织锦和干尸，才能明白西域都护不是把整个新疆涂成一块。' },
+  { id: 'tibet', name: '西藏博物馆', city: '西藏 · 拉萨', lng: 91.13, lat: 29.65, url: 'https://www.tibetmuseum.cn/', stages: ['stage07','stage09','stage11'], desc: '唐蕃往来、元朝宣政院到清朝治藏，文物比口号更有说服力。文成公主入藏之后的故事在这里续上。' },
+  { id: 'zgyd', name: '中共一大纪念馆', city: '上海', lng: 121.48, lat: 31.22, url: 'https://www.zgyd1921.com/', stages: ['stage12'], desc: '1921 年中国共产党在这里诞生。近现代史从建党、长征到新中国，有了具体的出发地点。' },
+  { id: 'jb', name: '中国人民革命军事博物馆', city: '北京', lng: 116.32, lat: 39.91, url: 'https://www.jb.mil.cn/', stages: ['stage12'], desc: '从南昌起义、长征、抗战到抗美援朝、国防现代化。想把近现代战争与国防看清楚，来军博。' }
+];

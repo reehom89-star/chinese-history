@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>华夏五千年 · 中国历史百科</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4D6D'/><text x='50' y='72' font-size='58' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-weight='bold'>华</text></svg>">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=mapfix4">
 </head>
 <body>
 <div id="app">
@@ -23,6 +23,7 @@
       <a data-view="home" class="active" onclick="App.goHome()">🏮 时间轴</a>
       <a data-view="map" onclick="App.showMap()">🗺️ 地图</a>
       <a data-view="quiz" onclick="App.showQuiz()">🎯 问答</a>
+      <a data-view="museum" onclick="App.showMuseum()">🏛️ 博物馆</a>
     </nav>
     <div class="search-box">
       <input id="search-input" type="text" placeholder="🔍 搜故事 / 人物 / 成语…" autocomplete="off"
@@ -88,27 +89,42 @@
       </svg>
       <div style="margin-bottom:16px;">
         <h2 class="font-kai" style="font-size:26px;color:var(--ink);letter-spacing:2px;">🗺️ 华夏地理足迹</h2>
-        <p style="color:var(--text-light);font-size:13.5px;margin-top:6px;">点击地图上的点位或右侧列表，看看每个历史大事件发生在祖国大地的哪个角落</p>
+        <p style="color:var(--text-light);font-size:13.5px;margin-top:6px;">浅色底图是亚欧大陆（真实国界）。中国用省级政区叠加。点朝代后只给该年政权上色。</p>
       </div>
       <div class="map-layout">
         <div class="map-box">
           <div class="map-filters" id="map-filters"></div>
+          <div class="map-snaps" id="map-snaps"></div>
           <div class="map-routes" id="map-routes"></div>
           <div id="map-svg"></div>
+          <div class="map-legend" id="map-legend-dyn"></div>
           <div class="map-legend">
-            <span class="lg"><span class="lg-dot" style="background:#F6E7CF"></span> 现代中国</span>
+            <span class="lg"><span class="lg-dot" style="background:#F6E7CF"></span> 亚欧大陆底图</span>
             <span class="lg"><span class="lg-dot" style="background:#C8452E"></span> 历史地点</span>
-            <span class="lg"><span class="lg-dot" style="background:#C8452E;border:2px dashed #C8452E"></span> 朝代疆域（选中阶段时显示）</span>
+            <span class="lg"><span class="lg-dot" style="background:#C8452E;border:2px dashed #C8452E"></span> 彩色色块 = 该年控制范围</span>
             <span class="lg">🖱️ 点击探索</span>
           </div>
           <div id="dynasty-note" style="margin-top:10px;min-height:0;"></div>
         </div>
         <div class="map-side">
           <h3 id="map-side-title">🗺️ 全部地理足迹</h3>
+          <div id="spot-entry"></div>
           <div id="route-detail"></div>
           <div class="spot-list" id="spot-list"></div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ 博物馆 ============ -->
+  <section class="view" id="view-museum">
+    <div class="museum-view">
+      <div style="margin-bottom:16px;">
+        <h2 class="font-kai" style="font-size:26px;color:var(--ink);letter-spacing:2px;">🏛️ 去博物馆看实物</h2>
+        <p style="color:var(--text-light);font-size:13.5px;margin-top:6px;">这些都是国内著名博物馆的官网。按朝代筛选，点卡片就能跳转过去对照文物。</p>
+      </div>
+      <div class="map-filters" id="museum-filters"></div>
+      <div class="museum-grid" id="museum-page"></div>
     </div>
   </section>
 
@@ -140,12 +156,14 @@
 </div>
 
 <script src="js/data/core.js"></script>
-<script src="js/data/stage01-03.js"></script>
-<script src="js/data/stage04-06.js"></script>
-<script src="js/data/stage07-09.js"></script>
-<script src="js/data/stage10-12.js"></script>
+<script src="js/data/stage01-03.js?v=quiz2"></script>
+<script src="js/data/stage04-06.js?v=quiz2"></script>
+<script src="js/data/stage07-09.js?v=quiz2"></script>
+<script src="js/data/stage10-12.js?v=quiz2"></script>
 <script src="js/data/china.js"></script>
+<script src="js/data/eurasia.js"></script>
 <script src="js/data/territories.js"></script>
-<script src="js/app.js"></script>
+<script src="js/data/museums.js"></script>
+<script src="js/app.js?v=mapfix4"></script>
 </body>
 </html>

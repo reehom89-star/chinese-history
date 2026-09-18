@@ -52,14 +52,27 @@ for (const s of ST) {
 }
 ok('字段/题目/地图点位检查完成');
 
-console.log('== 3. HTML 引用一致性 ==');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-const scripts = [...html.matchAll(/src="([^"]+)"/g)].map(m => m[1]);
+console.log('== 3. 图片使用完整性（孤儿图检测） ==');
+const usedImg = new Set();
+for (const s of ST) {
+  for (const x of s.stories) if (x.img) usedImg.add(x.img);
+  for (const x of s.people) if (x.img) usedImg.add(x.img);
+  if (s.special && s.special.img) usedImg.add(s.special.img);
+  if (s.special && s.special.qixiong && s.special.qixiong.img) usedImg.add(s.special.qixiong.img);
+}
+for (let i = 1; i <= 12; i++) usedImg.add('stage' + String(i).padStart(2, '0') + '-hero.jpg');
+const allImg = fs.readdirSync(path.join(ROOT, 'images'));
+const orphan = allImg.filter(f => !usedImg.has(f));
+if (orphan.length) orphan.forEach(f => err('孤儿图片（未被任何内容引用）: ' + f));
+else ok(`images 目录 ${allImg.length} 张图片全部被引用`);
+
+console.log('== 4. HTML 引用一致性 ==');
+const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');const scripts = [...html.matchAll(/src="([^"]+)"/g)].map(m => m[1].split("?")[0]);
 for (const s of scripts) {
   if (!fs.existsSync(path.join(ROOT, s))) err(`index.html 引用了不存在的 ${s}`);
   else ok(`script ${s}`);
 }
-const css = [...html.matchAll(/href="([^"]+\.css)"/g)].map(m => m[1]);
+const css = [...html.matchAll(/href="([^"]+\.css[^"]*)"/g)].map(m => m[1].split("?")[0]);
 for (const c of css) {
   if (!fs.existsSync(path.join(ROOT, c))) err(`index.html 引用了不存在的 ${c}`);
   else ok(`css ${c}`);

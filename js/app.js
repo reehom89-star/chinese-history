@@ -34,6 +34,7 @@
     if (name === 'home') renderHome();
     if (name === 'map') renderMap(opts);
     if (name === 'quiz') renderQuiz();
+    if (name === 'museum') renderMuseumPage();
   }
 
   /* ---------- 首页 ---------- */
@@ -179,6 +180,7 @@
         <div class="sp-block">
           <div class="sp-sub"><span class="sp-sub-icon">🏰</span> 战国七雄</div>
           <div class="sp-intro">${esc(s.special.qixiong.intro)}</div>
+          ${s.special.qixiong.img ? `<div class="sp-img">${imgWrap('images/' + s.special.qixiong.img, '🏰')}</div>` : ''}
           <div class="qixiong-grid">
             ${s.special.qixiong.list.map(q => `
               <div class="qixiong-card" style="--qc:${esc(q.color)}">
@@ -209,7 +211,7 @@
   /* Albers 等积圆锥投影（中国常用标准纬线） */
   const DEG = Math.PI / 180;
   function albersProj(lng, lat) {
-    const phi0 = 0, lambda0 = 105, phi1 = 25, phi2 = 47;
+    const phi0 = 20, lambda0 = 80, phi1 = 20, phi2 = 55;
     const n = (Math.sin(phi1 * DEG) + Math.sin(phi2 * DEG)) / 2;
     const C = Math.cos(phi1 * DEG) ** 2 + 2 * n * Math.sin(phi1 * DEG);
     const rho0 = Math.sqrt(C - 2 * n * Math.sin(phi0 * DEG)) / n;
@@ -227,45 +229,59 @@
   let mapCache = null;
   function buildMapPaths() {
     if (mapCache) return mapCache;
-    const geo = window.CHINA_GEO;
-    // 第一步：所有点投影（albers），同时求边界
-    // 数据结构：coordinates -> polygon -> ring -> 点，此处拍平 polygon 层
-    // 南海诸岛（ring 平均纬度 < 18°N）单独收集，用小比例绘制在右下角，避免挤压大陆
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     let ssMinX = Infinity, ssMinY = Infinity, ssMaxX = -Infinity, ssMaxY = -Infinity;
     const mainlandRings = [];
     const southSeaRings = [];
-    (geo.features || []).forEach(f => {
-      const fname = f.properties.name || '';
-      const geoms = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
-      geoms.forEach(rings0 => rings0.forEach(ring => {
-        if (!ring.length) return;
-        let latSum = 0;
-        ring.forEach(c => latSum += c[1]);
-        const avgLat = latSum / ring.length;
-        const pts = ring.map(c => {
-          const p = albersProj(c[0], c[1]);
-          if (avgLat < 18) {
-            ssMinX = Math.min(ssMinX, p[0]); ssMaxX = Math.max(ssMaxX, p[0]);
-            ssMinY = Math.min(ssMinY, p[1]); ssMaxY = Math.max(ssMaxY, p[1]);
-          } else {
-            minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
-            minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
-          }
-          return p;
+    function addRings(features, opts) {
+      (features || []).forEach(function(f) {
+        if (!f.geometry) return;
+        const fname = (f.properties && f.properties.name) || '';
+        if (opts.extra && fname === '冰岛') return;
+        const geoms = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        geoms.forEach(function(rings0) {
+          rings0.forEach(function(ring) {
+            if (!ring.length) return;
+            let latSum = 0, minLat = 90, maxLat = -90;
+            ring.forEach(function(c) {
+              latSum += c[1];
+              minLat = Math.min(minLat, c[1]);
+              maxLat = Math.max(maxLat, c[1]);
+            });
+            const avgLat = latSum / ring.length;
+            if (opts.extra && (avgLat > 66 || minLat > 63.5)) return;
+            const sea = opts.chinaSea && avgLat < 18;
+            const pts = ring.map(function(c) {
+              const p = albersProj(c[0], c[1]);
+              if (sea) {
+                ssMinX = Math.min(ssMinX, p[0]); ssMaxX = Math.max(ssMaxX, p[0]);
+                ssMinY = Math.min(ssMinY, p[1]); ssMaxY = Math.max(ssMaxY, p[1]);
+              } else {
+                const lng = c[0], lat = c[1];
+                const inFrame = !opts.extra || (lat <= 71 && lat >= -10 && lng >= -12 && lng <= 150);
+                if (inFrame) {
+                  minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+                  minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+                }
+              }
+              return p;
+            });
+            if (sea) southSeaRings.push(pts);
+            else mainlandRings.push({ name: fname, pts: pts, extra: !!opts.extra });
+          });
         });
-        if (avgLat < 18) southSeaRings.push(pts);
-        else mainlandRings.push({ name: fname, pts });
-      }));
-    });
+      });
+    }
+    addRings((window.EURASIA_GEO && window.EURASIA_GEO.features) || [], { extra: true, chinaSea: false });
+    addRings((window.CHINA_GEO && window.CHINA_GEO.features) || [], { extra: false, chinaSea: true });
     // 第二步：大陆 fit 到视口（albers y 轴向上，屏幕 y 向下，翻转 y 使北方朝上）
-    const W = 900, H = 780, pad = 26;
+    const W = 980, H = 640, pad = 10;
     const scale = Math.min((W - pad * 2) / (maxX - minX), (H - pad * 2) / (maxY - minY));
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     const px = p => [(p[0] - cx) * scale + W / 2, H / 2 - (p[1] - cy) * scale];
     // 第三步：生成大陆 path（保留省名，供疆域按省着色）
     const paths = mainlandRings.map(r => ({
-      name: r.name,
+      name: r.name, extra: !!r.extra,
       d: 'M' + r.pts.map(p => px(p).map(v => v.toFixed(1)).join(',')).join(' ') + ' Z'
     }));
     // 第四步：南海诸岛小比例绘制在右下角（目标矩形，保持纵横比）
@@ -284,8 +300,18 @@
   /* ---------- 历史路线（精确途经点 + Google 地球坐标） ---------- */
   const GE = (lat, lng) => `https://earth.google.com/web/@${lat.toFixed(4)},${lng.toFixed(4)},0a,60000d,35y,0h,0t,0r`;
   const ROUTES = [
-    { id: 'greatwall', name: '万里长城', emoji: '🧱', stage: 'stage04', color: '#B0651D',
-      desc: '东起山海关、西至嘉峪关，横贯中国北方两万余里。秦始皇连接战国长城，明代大修定型，是中华民族坚韧精神的象征。',
+    { id: 'qinwall', name: '秦长城', emoji: '🧱', stage: 'stage04', color: '#7C4A1A',
+      desc: '秦始皇把战国秦、赵、燕长城连成一线，西起临洮、北过阴山、东至辽东。它比今天游客走的明长城更靠北，位置并不重合。',
+      stops: [
+        { name: '临洮', place: '甘肃', lat: 35.38, lng: 103.86 },
+        { name: '九原', place: '内蒙古 · 包头', lat: 40.65, lng: 110.00 },
+        { name: '高阙', place: '内蒙古 · 狼山', lat: 41.10, lng: 107.00 },
+        { name: '云中', place: '内蒙古 · 托克托', lat: 40.28, lng: 111.20 },
+        { name: '造阳', place: '河北北部', lat: 41.20, lng: 115.80 },
+        { name: '辽东', place: '辽宁 · 辽阳', lat: 41.27, lng: 123.17 }
+      ] },
+    { id: 'greatwall', name: '明长城', emoji: '🧱', stage: 'stage10', color: '#B0651D',
+      desc: '今天我们看到的长城，主要是明朝修建的：东起山海关、西至嘉峪关。和秦长城不是同一条线。',
       stops: [
         { name: '山海关', place: '河北 · 秦皇岛', lat: 39.97, lng: 119.75 },
         { name: '金山岭', place: '北京 · 密云', lat: 40.68, lng: 117.23 },
@@ -358,62 +384,394 @@
       ] }
   ];
   let activeRoute = null;
+  let mapSnapYear = null;
+  let mapCam = { x: 0, y: 0, w: 980, h: 640 };
+  const STAGE_DEFAULT_YEAR = {
+    stage01: -3000, stage02: -950, stage03: -260, stage04: -214,
+    stage05: -60, stage06: 229, stage07: 669, stage08: 1111,
+    stage09: 1330, stage10: 1582, stage11: 1760, stage12: 2026
+  };
+  const PAL = {
+    red: '#E63946', amber: '#E07B00', green: '#1F9D55', olive: '#7A8B1E',
+    teal: '#0E9F8A', cyan: '#1BA0C9', blue: '#3B6FD4', purple: '#7C3AED',
+    magenta: '#C026A9', rose: '#E0528B', neutral: '#8A7A6B'
+  };
+
+  function snapsFor(stageId) {
+    if (!stageId || !window.TERRITORIES) return [];
+    return window.TERRITORIES.snapshots.filter(s => s.stage === stageId);
+  }
+  function snapOf(stageId) {
+    const list = snapsFor(stageId);
+    if (!list.length) return null;
+    if (mapSnapYear != null) {
+      const hit = list.find(s => s.year === mapSnapYear);
+      if (hit) return hit;
+    }
+    const def = STAGE_DEFAULT_YEAR[stageId];
+    return list.find(s => s.year === def) || list[list.length - 1];
+  }
+  function yearText(y) {
+    return y < 0 ? '公元前 ' + (-y) + ' 年' : '公元 ' + y + ' 年';
+  }
+  function ringPath(ring, px) {
+    return 'M' + ring.map(c => px(albersProj(c[0], c[1])).map(v => v.toFixed(1)).join(',')).join(' L') + ' Z';
+  }
+  function ringAreaKm2(ring) {
+    const pts = ring.map(c => albersProj(c[0], c[1]));
+    let a = 0;
+    for (let i = 0, n = pts.length - 1; i < n; i++) a += pts[i][0] * pts[i + 1][1] - pts[i + 1][0] * pts[i][1];
+    return Math.abs(a) / 2 * 6371 * 6371;
+  }
+  function fmtWanKm2(km2) {
+    const wan = km2 / 10000;
+    if (wan >= 100) return Math.round(wan) + ' 万平方公里';
+    if (wan >= 10) return wan.toFixed(0) + ' 万平方公里';
+    return wan.toFixed(1) + ' 万平方公里';
+  }
+
+  function normProv(n) {
+    return String(n || "").replace(/特别行政区/g, "").replace(/壮族自治区/g, "").replace(/回族自治区/g, "")
+      .replace(/维吾尔自治区/g, "").replace(/自治区/g, "").replace(/省/g, "").replace(/市/g, "");
+  }
+  function buildDynastyLayer(stageId, px, paths) {
+    const snap = snapOf(stageId);
+    if (!snap) return "";
+    let out = "";
+    snap.regimes.forEach(reg => {
+      const color = PAL[reg.color] || PAL.neutral;
+      const fillA = (reg.kind === "neighbor") ? "99" : "C2";
+      const want = {};
+      (reg.provinces || []).forEach(pn => { want[normProv(pn)] = true; });
+      paths.forEach(p => {
+        const ok = reg.fillAll ? (!p.extra || want[normProv(p.name)]) : !!want[normProv(p.name)];
+        if (!ok) return;
+        if (reg.fillAllExcept && reg.fillAllExcept.some(x => (p.name || "").indexOf(x) >= 0)) return;
+        out += "<path d=\"" + p.d + "\" fill=\"" + color + fillA + "\" stroke=\"" + color + "\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/>";
+      });
+      if (reg.capCoord && reg.capCoord.length === 2) {
+        const q = px(albersProj(reg.capCoord[0], reg.capCoord[1]));
+        out += "<circle cx=\"" + q[0] + "\" cy=\"" + q[1] + "\" r=\"6.5\" fill=\"" + color + "\" stroke=\"#fff\" stroke-width=\"2.4\"/>";
+      }
+      if (reg.label && reg.label.length === 2) {
+        const q = px(albersProj(reg.label[0], reg.label[1]));
+        out += "<text x=\"" + q[0] + "\" y=\"" + q[1] + "\" class=\"regime-label\" font-size=\"15\" stroke-width=\"3.2\" fill=\"" + color + "\">" + esc(reg.name) + "</text>";
+      }
+    });
+    return out;
+  }
+  function insightHtml(stageId) {
+    const snap = snapOf(stageId);
+    if (!snap) {
+      return stageId
+        ? "<div class=\"insight-card\"><h4>🤖 智能解读</h4><p>这个时期还没有可以按省对照的国家疆域。底图是亚欧大陆。这个时期还没有按省对照的中原王朝疆域，点位标出故事发生的地方。</p></div>"
+        : "<div class=\"insight-card\"><h4>🤖 智能解读</h4><p>浅色底图是亚欧大陆真实国界，中国部分再用省级政区叠上去。点上方朝代，我会按现代省界自动对照该年政权，没涂色的省仍留在底图上，方便看“当时到哪、还没到哪”。</p></div>";
+    }
+    const main = snap.regimes.find(r => (r.provinces || []).length === Math.max.apply(null, snap.regimes.map(x => (x.provinces || []).length))) || snap.regimes[0];
+    const n = (main.provinces || []).length;
+    const others = snap.regimes.filter(r => r !== main).map(r => r.name).join("、");
+    return "<div class=\"insight-card\">"
+      + "<h4>🤖 智能解读 · " + esc(main.name) + "</h4>"
+      + "<p class=\"ins-year\">" + yearText(snap.year) + " · " + esc(snap.label) + "</p>"
+      + "<p>底图是亚欧大陆。彩色是该年政权，按中国省级政区和邻国国界对照，大约覆盖 " + n + " 个省级政区。</p>"
+      + (others ? "<p>同时并立：" + esc(others) + "。</p>" : "")
+      + "<p class=\"ins-note\">" + esc(snap.note || "") + "</p>"
+      + "<p class=\"ins-src\">省界只是对照网格，不是古代行政区划本身。</p></div>";
+  }
+
+  function mapK() { return mapCam.w / 980; }
+  function userPx(svg, px) {
+    const w = Math.max(240, (svg && svg.clientWidth) || 700);
+    return px * mapCam.w / w;
+  }
+  function spotRadius(active, svg) {
+    const r = userPx(svg, 4.8);
+    return active ? r * 1.32 : r;
+  }
+  function applyMapCam() {
+    const svg = document.querySelector('#map-svg svg');
+    if (!svg) return;
+    svg.setAttribute('viewBox', mapCam.x + ' ' + mapCam.y + ' ' + mapCam.w + ' ' + mapCam.h);
+    const k = mapK();
+    const showText = mapCam.w <= 980 * 0.40;
+    const u = function (px) { return userPx(svg, px); };
+    const sw = u(2);
+    const fs = u(12);
+    const halo = u(3);
+    const lift = u(14);
+
+    svg.querySelectorAll('.map-spot').forEach(function (g) {
+      const on = g.classList.contains('active');
+      const circles = g.querySelectorAll('circle');
+      if (circles[0]) {
+        circles[0].setAttribute('r', spotRadius(on, svg).toFixed(2));
+        circles[0].setAttribute('stroke-width', sw.toFixed(2));
+      }
+      if (circles[1]) circles[1].setAttribute('r', u(14).toFixed(2));
+      const t = g.querySelector('.spot-label');
+      if (t && circles[0]) {
+        t.setAttribute('font-size', fs.toFixed(2));
+        t.setAttribute('stroke-width', halo.toFixed(2));
+        const cy = parseFloat(circles[0].getAttribute('cy'));
+        t.setAttribute('y', (cy - lift).toFixed(1));
+      }
+    });
+
+    svg.querySelectorAll('.regime-label').forEach(function (el) {
+      el.setAttribute('font-size', u(13).toFixed(2));
+      el.setAttribute('stroke-width', u(3.2).toFixed(2));
+    });
+
+    svg.querySelectorAll('.route-line').forEach(function (el) {
+      el.setAttribute('stroke-width', u(5).toFixed(2));
+    });
+    svg.querySelectorAll('.route-line-dash').forEach(function (el) {
+      el.setAttribute('stroke-width', u(2).toFixed(2));
+      el.setAttribute('stroke-dasharray', u(6).toFixed(1) + ' ' + u(8).toFixed(1));
+    });
+    svg.querySelectorAll('.route-dot').forEach(function (el) {
+      const isEnd = el.getAttribute('data-end') === '1';
+      el.setAttribute('r', u(isEnd ? 6 : 4.2).toFixed(2));
+      el.setAttribute('stroke-width', u(2).toFixed(2));
+    });
+    svg.querySelectorAll('.route-end-label').forEach(function (el) {
+      const cy = parseFloat(el.getAttribute('data-cy'));
+      el.setAttribute('font-size', u(13).toFixed(2));
+      el.setAttribute('stroke-width', halo.toFixed(2));
+      if (!isNaN(cy)) el.setAttribute('y', (cy - lift * 1.05).toFixed(1));
+    });
+    svg.querySelectorAll('.route-stop-label').forEach(function (el) {
+      const cy = parseFloat(el.getAttribute('data-cy'));
+      el.setAttribute('font-size', fs.toFixed(2));
+      el.setAttribute('stroke-width', halo.toFixed(2));
+      if (!isNaN(cy)) el.setAttribute('y', (cy - lift).toFixed(1));
+    });
+
+    const minDist = u(36);
+    const taken = [];
+    function hit(x, y) {
+      for (let i = 0; i < taken.length; i++) {
+        const dx = taken[i][0] - x, dy = taken[i][1] - y;
+        if (dx * dx + dy * dy < minDist * minDist) return true;
+      }
+      return false;
+    }
+    function take(x, y) { taken.push([x, y]); }
+
+    svg.querySelectorAll('.route-end-label').forEach(function (el) {
+      take(parseFloat(el.getAttribute('x')), parseFloat(el.getAttribute('y')));
+      el.style.opacity = '1';
+    });
+    svg.querySelectorAll('.route-stop-label').forEach(function (el) {
+      const x = parseFloat(el.getAttribute('x'));
+      const y = parseFloat(el.getAttribute('y'));
+      const vis = showText && !hit(x, y);
+      el.style.opacity = vis ? '1' : '0';
+      if (vis) take(x, y);
+    });
+    svg.querySelectorAll('.regime-label').forEach(function (el) {
+      const x = parseFloat(el.getAttribute('x'));
+      const y = parseFloat(el.getAttribute('y'));
+      const vis = showText && !hit(x, y);
+      el.style.opacity = vis ? '1' : '0';
+      if (vis) take(x, y);
+    });
+    const routeOn = !!activeRoute;
+    svg.querySelectorAll('.map-spot').forEach(function (g) {
+      const t = g.querySelector('.spot-label');
+      const c = g.querySelector('circle');
+      if (!t || !c) { g.classList.remove('zoomed-label'); return; }
+      const x = parseFloat(c.getAttribute('cx'));
+      const y = parseFloat(t.getAttribute('y'));
+      const force = g.classList.contains('active');
+      let auto = false;
+      if (force) take(x, y);
+      else if (showText && !routeOn && !hit(x, y)) { auto = true; take(x, y); }
+      g.classList.toggle('zoomed-label', auto);
+    });
+  }
+  function clampCam() {
+    const W = 980, H = 640;
+    mapCam.w = Math.min(W, Math.max(90, mapCam.w));
+    mapCam.h = mapCam.w * H / W;
+    mapCam.x = Math.min(W - mapCam.w, Math.max(0, mapCam.x));
+    mapCam.y = Math.min(H - mapCam.h, Math.max(0, mapCam.y));
+  }
+  function mapZoom(factor, cx, cy) {
+    const W = 980, H = 640;
+    const px = cx == null ? mapCam.x + mapCam.w / 2 : cx;
+    const py = cy == null ? mapCam.y + mapCam.h / 2 : cy;
+    const nw = Math.min(W, Math.max(90, mapCam.w * factor));
+    const nh = nw * H / W;
+    mapCam.x = px - (px - mapCam.x) * (nw / mapCam.w);
+    mapCam.y = py - (py - mapCam.y) * (nh / mapCam.h);
+    mapCam.w = nw; mapCam.h = nh;
+    clampCam(); applyMapCam();
+  }
+  function mapReset() { mapCam = { x: 0, y: 0, w: 980, h: 640 }; applyMapCam(); }
+  function svgPoint(svg, e) {
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const m = svg.getScreenCTM();
+    if (!m) return null;
+    return pt.matrixTransform(m.inverse());
+  }
+  function bindMapZoom() {
+    const svg = document.querySelector('#map-svg svg');
+    if (!svg) return;
+    svg.style.touchAction = 'none';
+    svg.style.userSelect = 'none';
+    svg.style.webkitUserSelect = 'none';
+    svg.addEventListener('wheel', e => {
+      e.preventDefault();
+      const p = svgPoint(svg, e); if (!p) return;
+      mapZoom(e.deltaY > 0 ? 1.12 : 0.88, p.x, p.y);
+    }, { passive: false });
+    let drag = null;
+    svg.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      drag = { x: e.clientX, y: e.clientY, cx: mapCam.x, cy: mapCam.y, id: e.pointerId, moved: false };
+      try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    svg.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && dx * dx + dy * dy < 36) return;
+      drag.moved = true;
+      svg.style.cursor = 'grabbing';
+      const k = mapCam.w / Math.max(1, svg.clientWidth);
+      mapCam.x = drag.cx - dx * k;
+      mapCam.y = drag.cy - dy * k;
+      clampCam(); applyMapCam();
+    });
+    svg.addEventListener('click', e => {
+      if (window.__mapSuppressClick) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    const end = e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (drag.moved) {
+        window.__mapSuppressClick = true;
+        setTimeout(function () { window.__mapSuppressClick = false; }, 0);
+      }
+      drag = null;
+      svg.style.cursor = 'grab';
+    };
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
+    svg.style.cursor = 'grab';
+  }
+
 
   function renderMap(opts) {
     const stageId = (opts && opts.stage) || null;
+    const keepCam = opts && opts.keepCam;
     mapFilterStage = stageId;
-    // 地图阶段筛选按钮
+    if (!keepCam) { mapSnapYear = (opts && opts.year != null) ? opts.year : (STAGE_DEFAULT_YEAR[stageId] || null); mapReset(); }
     const btns = [{ id: null, name: '🌟 全部' }].concat(STAGES.map(s => ({ id: s.id, name: s.emoji + ' ' + s.name })));
-    $('#map-filters').innerHTML = btns.map(b => `
-      <button class="filter-btn ${(b.id === stageId) ? 'active' : ''}" onclick="App.openMap(${b.id ? "'" + b.id + "'" : 'null'})">${esc(b.name)}</button>`).join('');
-    // 历史路线按钮
-    $('#map-routes').innerHTML = `
-      <span class="route-label">🧭 历史路线：</span>
-      ${ROUTES.map(r => `<button class="filter-btn route-btn ${activeRoute === r.id ? 'active' : ''}" style="${activeRoute === r.id ? 'background:' + r.color + ';border-color:' + r.color : ''}" onclick="App.route('${r.id}')">${r.emoji} ${r.name}</button>`).join('')}
-      ${activeRoute ? `<button class="filter-btn" onclick="App.route(null)">✖ 关闭路线</button>` : ''}`;
+    $('#map-filters').innerHTML = btns.map(b =>
+      '<button class="filter-btn ' + ((b.id === stageId) ? 'active' : '') + '" onclick="App.openMap(' + (b.id ? ("'" + b.id + "'") : 'null') + ')">' + esc(b.name) + '</button>'
+    ).join('');
+    const snaps = snapsFor(stageId);
+    const cur = snapOf(stageId);
+    $('#map-snaps').innerHTML = snaps.length
+      ? ('<span class="route-label">📅 这一年：</span>' + snaps.map(s =>
+          '<button class="filter-btn ' + ((cur && cur.year === s.year) ? 'active' : '') + '" onclick="App.openMapYear(\'' + stageId + '\',' + s.year + ')">' + yearText(s.year).replace('公元 ', '').replace('公元前 ', '前') + ' · ' + esc(s.era) + '</button>'
+        ).join(''))
+      : '';
+    $('#map-routes').innerHTML =
+      '<span class="route-label">🧭 历史路线：</span>' +
+      ROUTES.map(r => '<button class="filter-btn route-btn ' + (activeRoute === r.id ? 'active' : '') + '" style="' + (activeRoute === r.id ? ('background:' + r.color + ';border-color:' + r.color) : '') + '" onclick="App.route(\'' + r.id + '\')">' + r.emoji + ' ' + r.name + '</button>').join('') +
+      (activeRoute ? '<button class="filter-btn" onclick="App.route(null)">✖ 关闭路线</button>' : '');
     const { paths, px, W, H, southSea, southSeaBox } = buildMapPaths();
     const palette = ['#F6E7CF', '#EBDDC7', '#F2E3C9', '#EFE0C9', '#F5E9D2'];
-    const baseOpacity = (stageId && snapOf(stageId)) ? 0.4 : 0.95;
+    const hasSnap = !!cur;
+    const baseOpacity = 0.95;
     const ssW2 = southSeaBox.x1 - southSeaBox.x0, ssH2 = southSeaBox.y1 - southSeaBox.y0;
-    const svg = `
-      <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <filter id="spotShadow" x="-80%" y="-80%" width="260%" height="260%">
-            <feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="#C8452E" flood-opacity="0.55"/>
-          </filter>
-          <clipPath id="mapClip"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath>
-        </defs>
-        ${paths.map((p, i) => `<path d="${p.d}" fill="${palette[i % palette.length]}" stroke="#B99B6C" stroke-width="1.1" stroke-linejoin="round" opacity="${baseOpacity}"/>`).join('')}
-        <g id="map-southsea">
-          ${southSea.map(d => `<path d="${d}" fill="#E9D9BC" stroke="#B99B6C" stroke-width="1" stroke-linejoin="round" opacity="0.95"/>`).join('')}
-          <rect x="${southSeaBox.x0}" y="${southSeaBox.y0}" width="${ssW2}" height="${ssH2}" fill="none" stroke="#B99B6C" stroke-width="1.6" stroke-dasharray="7 5"/>
-          <text x="${southSeaBox.x0 + ssW2 / 2}" y="${southSeaBox.y1 + 20}" text-anchor="middle" font-size="13" font-weight="700" fill="#8A6D3B">南海诸岛</text>
-        </g>
-        <g id="map-dynasty">${buildDynastyLayer(stageId, px, paths)}</g>
-        <g id="map-route-layer"></g>
-        <g id="map-spots">${buildSpots(null, { px, W, H, stageId })}</g>
-      </svg>`;
-    $('#map-svg').innerHTML = svg;
+    const fillSS = !!(cur && cur.regimes.some(r => r.fillSouthSea));
+    const svg = '<svg viewBox="' + mapCam.x + ' ' + mapCam.y + ' ' + mapCam.w + ' ' + mapCam.h + '" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+      '<filter id="spotShadow" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="#C8452E" flood-opacity="0.55"/></filter>' +
+      '<clipPath id="chinaClip">' + paths.map(p => '<path d="' + p.d + '"/>').join('') + '</clipPath>' +
+      '</defs>' +
+      paths.map((p, i) => '<path d="' + p.d + '" fill="' + (p.extra ? '#E3D2B0' : palette[i % palette.length]) + '" stroke="#B99B6C" stroke-width="1.1" stroke-linejoin="round" opacity="' + baseOpacity + '"/>').join('') +
+      '<g id="map-southsea">' +
+      southSea.map(d => '<path d="' + d + '" fill="' + (fillSS ? '#E63946B8' : '#E9D9BC') + '" stroke="#B99B6C" stroke-width="1" stroke-linejoin="round" opacity="0.95"/>').join('') +
+      '<rect x="' + southSeaBox.x0 + '" y="' + southSeaBox.y0 + '" width="' + ssW2 + '" height="' + ssH2 + '" fill="none" stroke="#B99B6C" stroke-width="1.6" stroke-dasharray="7 5"/>' +
+      '<text x="' + (southSeaBox.x0 + ssW2 / 2) + '" y="' + (southSeaBox.y1 + 20) + '" text-anchor="middle" font-size="13" font-weight="700" fill="#8A6D3B">南海诸岛</text>' +
+      '</g>' +
+      '<g id="map-dynasty" clip-path="url(#chinaClip)">' + buildDynastyLayer(stageId, px, paths) + '</g>' +
+      '<g id="map-route-layer"></g>' +
+      '<g id="map-spots">' + buildSpots(null, { px, W, H, stageId }) + '</g>' +
+
+      '</svg>';
+    $('#map-svg').innerHTML = '<div class="map-canvas" id="map-canvas">' +
+      '<div class="map-zoom-btns">' +
+      '<button type="button" onclick="App.mapZoom(0.8)" title="放大">＋</button>' +
+      '<button type="button" onclick="App.mapZoom(1.25)" title="缩小">－</button>' +
+      '<button type="button" onclick="App.mapReset()" title="复位" class="map-reset-btn">复位</button>' +
+      '</div>' + svg + '<div class="map-hint">滚轮放大 · 拖动平移 · 双击复位</div></div>';
+    bindMapZoom();
+    const svgEl = document.querySelector('#map-svg svg');
+    if (svgEl) svgEl.addEventListener('dblclick', () => mapReset());
     $('#map-side-title').textContent = stageId
-      ? (window.STAGE_BY_ID[stageId] ? window.STAGE_BY_ID[stageId].emoji + ' ' + window.STAGE_BY_ID[stageId].name + ' · 疆域与足迹' : '地理足迹')
+      ? ((window.STAGE_BY_ID[stageId] ? window.STAGE_BY_ID[stageId].emoji + ' ' + window.STAGE_BY_ID[stageId].name : '') + ' · 疆域与足迹')
       : '🗺️ 全部地理足迹';
-    const snap = snapOf(stageId);
-    $('#dynasty-note').innerHTML = snap
-      ? `<span class="dynasty-note-tag" style="background:${stageColor(stageId)}22;color:${stageColor(stageId)}">🗺️ ${snap.year < 0 ? '公元前 ' + (-snap.year) : '公元 ' + snap.year} 年 · ${esc(snap.label)} · ${snap.regimes.length} 政权</span>`
-      : (stageId
-        ? `<span class="dynasty-note-tag" style="background:#9992;color:#6F5F53">🗺️ 该时期信史疆域尚无定论（夏商周以前）</span>`
-        : '');
+    const legendRegs = cur ? cur.regimes.map(r =>
+      '<span class="lg"><span class="lg-dot" style="background:' + (PAL[r.color] || PAL.neutral) + '"></span>' + esc(r.name) + (r.kind === 'vassal' ? '（羁縻）' : r.kind === 'core' ? '（活动范围）' : '') + '</span>'
+    ).join('') : '';
+    $('#map-legend-dyn').innerHTML = legendRegs || '<span class="lg"><span class="lg-dot" style="background:#F6E7CF"></span> 今日中国轮廓</span>';
+    $('#dynasty-note').innerHTML = insightHtml(stageId);
     if (activeRoute) {
       const route = ROUTES.find(r => r.id === activeRoute);
       if (route && (!stageId || stageId === route.stage)) renderRoute(activeRoute, true);
-      else { activeRoute = null; $('#map-route-layer').innerHTML = ''; $('#route-detail').innerHTML = ''; }
+      else { activeRoute = null; const rl = $('#map-route-layer'); if (rl) rl.innerHTML = ''; $('#route-detail').innerHTML = ''; }
     }
+    applyMapCam();
     renderSpotList(stageId);
+    if (stageId) learnRecordVisit(stageId);
   }
+
+  function renderMuseumPage() {
+    const host = document.getElementById("museum-page");
+    if (!host) return;
+    const list = window.MUSEUMS || [];
+    const filt = document.getElementById("museum-filters");
+    if (filt && !filt.dataset.ready) {
+      filt.dataset.ready = "1";
+      filt.innerHTML = [{id:"all", name:"全部"}].concat(STAGES.map(function(st){ return {id:st.id, name: st.emoji + " " + st.name}; })).map(function(b){
+        return '<button class="filter-btn" data-ms="' + b.id + '" onclick="App.filterMuseums(\'' + b.id + '\')">' + esc(b.name) + '</button>';
+      }).join("");
+    }
+    const cur = (filt && filt.dataset.cur) || "all";
+    $$("#museum-filters .filter-btn").forEach(b => b.classList.toggle("active", b.getAttribute("data-ms") === cur));
+    const show = list.filter(m => cur === "all" || (m.stages || []).indexOf(cur) >= 0);
+    host.innerHTML = show.map(m => {
+      const st = (m.stages || []).map(id => (window.STAGE_BY_ID[id] || {}).name).filter(Boolean).join(" · ");
+      return "<article class=\"museum-card\">"
+        + "<div class=\"mc-badge\">🏛️</div>"
+        + "<h3>" + esc(m.name) + "</h3>"
+        + "<div class=\"mc-city\">" + esc(m.city) + "</div>"
+        + (st ? "<div class=\"mc-stage\">" + esc(st) + "</div>" : "")
+        + "<p>" + esc(m.desc) + "</p>"
+        + "<a class=\"museum-link\" href=\"" + esc(m.url) + "\" target=\"_blank\" rel=\"noopener\">打开官网 ↗</a>"
+        + "</article>";
+    }).join("");
+  }
+  function filterMuseums(id) {
+    const filt = document.getElementById("museum-filters");
+    if (filt) filt.dataset.cur = id;
+    renderMuseumPage();
+  }
+  function openMapYear(stageId, year) {
+    mapSnapYear = year;
+    renderMap({ stage: stageId, year: year, keepCam: true });
+  }
+  function toggleMuseums() { showMuseums = !showMuseums; renderMap({ stage: mapFilterStage, keepCam: true }); }
 
   function renderRoute(id, silent) {
     activeRoute = id;
-    if (!id) { $('#map-route-layer').innerHTML = ''; $('#route-detail').innerHTML = ''; return; }
+    if (!id) { $('#map-route-layer').innerHTML = ''; $('#route-detail').innerHTML = ''; applyMapCam(); return; }
     const route = ROUTES.find(r => r.id === id);
     if (!route) return;
     const { px, W, H } = buildMapPaths();
@@ -432,12 +790,19 @@
         </div>
         <a class="stop-ge" href="${GE(s.lat, s.lng)}" target="_blank" rel="noopener" title="在 Google 地球查看精确位置">🌍</a>
       </div>`).join('');
+    const k0 = mapK();
     $('#map-route-layer').innerHTML = vis.length > 1 ? `
-      <path d="${d}" fill="none" stroke="${route.color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" pathLength="1" class="route-anim"/>
-      <path d="${d}" fill="none" stroke="${route.color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 6" opacity="0.9"/>
-      ${vis.map(({ p }, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === 0 || i === vis.length - 1 ? 6.5 : 4}" fill="${route.color}" stroke="#fff" stroke-width="2"/>`).join('')}
-      ${start ? `<text x="${start.p[0]}" y="${start.p[1] - 14}" class="spot-label" fill="#fff">起</text>` : ''}
-      ${end ? `<text x="${end.p[0]}" y="${end.p[1] - 14}" class="spot-label" fill="#fff">终</text>` : ''}` : '';
+      <path class="route-line route-anim" d="${d}" fill="none" stroke="${route.color}" stroke-width="${Math.max(1.05, 2.9 * k0).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+      <path class="route-line-dash" d="${d}" fill="none" stroke="${route.color}" stroke-width="${Math.max(0.5, 1.2 * k0).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${(3.4 * k0).toFixed(1)} ${(5.2 * k0).toFixed(1)}" opacity="0.9"/>
+      ${vis.map(({ p, s }, i) => {
+        const isEnd = i === 0 || i === vis.length - 1;
+        const r = isEnd ? Math.max(2.0, 3.7 * k0) : Math.max(1.4, 2.5 * k0);
+        const stopLabel = isEnd ? '' : '<text class="route-stop-label" pointer-events="none" data-cy="' + p[1].toFixed(1) + '" x="' + p[0].toFixed(1) + '" y="' + (p[1] - 8).toFixed(1) + '" font-size="10" stroke-width="1.8">' + esc(s.name) + '</text>';
+        return '<g class="route-stop"><circle class="route-dot" data-end="' + (isEnd ? '1' : '0') + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + r.toFixed(2) + '" fill="' + route.color + '" stroke="#fff" stroke-width="1.4"/>' + stopLabel + '</g>';
+      }).join('')}
+      ${start ? '<text class="route-end-label" pointer-events="none" data-cy="' + start.p[1].toFixed(1) + '" x="' + start.p[0].toFixed(1) + '" y="' + (start.p[1] - 12).toFixed(1) + '" font-size="11" stroke-width="1.8">起</text>' : ''}
+      ${end ? '<text class="route-end-label" pointer-events="none" data-cy="' + end.p[1].toFixed(1) + '" x="' + end.p[0].toFixed(1) + '" y="' + (end.p[1] - 12).toFixed(1) + '" font-size="11" stroke-width="1.8">终</text>' : ''}` : '';
+
     $('#route-detail').innerHTML = `
       <div class="route-card" style="border-left-color:${route.color}">
         <div class="rc-head"><span class="rc-emoji">${route.emoji}</span>
@@ -449,6 +814,7 @@
         <div class="rc-stops">${stopsHtml}</div>
         <button class="btn-ghost" style="width:100%;margin-top:12px;" onclick="App.openStage('${route.stage}')">📖 去看看这个时代 ›</button>
       </div>`;
+    applyMapCam();
     if (!silent) { renderMap({ stage: mapFilterStage }); }
   }
 
@@ -461,67 +827,28 @@
     return list;
   }
 
-  /* 当前阶段疆域叠加层（CHGIS 权威数据：按现代省份着色） */
-  const STAGE_SNAPSHOT = {
-    stage03: -260, stage04: -221, stage05: -60, stage06: 222, stage07: 669,
-    stage08: 1111, stage09: 1330, stage10: 1420, stage11: 1760, stage12: 1949
-  };
-  function stageColor(id) { return (window.STAGE_BY_ID[id] || {}).color || '#C8452E'; }
-  function snapOf(stageId) {
-    const year = STAGE_SNAPSHOT[stageId];
-    if (year === undefined || !window.TERRITORIES) return null;
-    return window.TERRITORIES.snapshots.find(s => s.year === year) || null;
+  function shortSpotName(n) {
+    return String(n || '').replace(/（.*?）/g, '').replace(/\(.*?\)/g, '').trim();
   }
-  /* 省份名归一化：'河北省' -> '河北'（territories 数据用简称） */
-  function normProv(n) {
-    return String(n || '').replace(/特别行政区/g, '').replace(/壮族自治区/g, '').replace(/回族自治区/g, '')
-      .replace(/维吾尔自治区/g, '').replace(/自治区/g, '').replace(/省/g, '').replace(/市/g, '');
-  }
-  function buildDynastyLayer(stageId, px, paths) {
-    const snap = snapOf(stageId);
-    if (!snap) return '';
-    // 高对比饱和色板（政权间区分明显）
-    const PAL = {
-      red: '#E63946', amber: '#E07B00', green: '#1F9D55', olive: '#7A8B1E',
-      teal: '#0E9F8A', cyan: '#1BA0C9', blue: '#3B6FD4', purple: '#7C3AED',
-      magenta: '#C026A9', rose: '#E0528B', neutral: '#8A7A6B'
-    };
-    let out = '';
-    snap.regimes.forEach(reg => {
-      const color = PAL[reg.color] || PAL.neutral;
-      const fill = color + 'A6';
-      reg.provinces.forEach(pn => {
-        paths.forEach(p => {
-          if (normProv(p.name) === normProv(pn)) out += `<path d="${p.d}" fill="${fill}" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
-        });
-      });
-      if (reg.capCoord && reg.capCoord.length === 2) {
-        const q = px(albersProj(reg.capCoord[0], reg.capCoord[1]));
-        out += `<circle cx="${q[0]}" cy="${q[1]}" r="6" fill="${color}" stroke="#fff" stroke-width="2.5"/>`;
-      }
-      if (reg.label && reg.label.length === 2) {
-        const q = px(albersProj(reg.label[0], reg.label[1]));
-        out += `<text x="${q[0]}" y="${q[1]}" class="regime-label" fill="${color}">${esc(reg.name)}</text>`;
-      }
-    });
-    return out;
-  }
-
   function buildSpots(_, ctx) {
     const list = collectSpots(ctx.stageId);
+    const showAll = false;
     return list.map((sp, i) => {
       const p = ctx.px(albersProj(sp.lng, sp.lat));
       const color = sp.color || '#C8452E';
-      return `<g class="map-spot" data-stage="${sp.stageId}" data-idx="${i}" style="cursor:pointer" onclick="App.mapClick('${sp.stageId}',${i})">
-        <circle cx="${p[0]}" cy="${p[1]}" r="7" fill="${color}" stroke="#fff" stroke-width="2" filter="url(#spotShadow)"/>
-        <circle cx="${p[0]}" cy="${p[1]}" r="12" fill="transparent"/>
-        <text class="spot-label" x="${p[0]}" y="${p[1] - 12}">${esc(sp.name)}</text>
-      </g>`;
+      const label = shortSpotName(sp.name);
+      return '<g class="map-spot' + (showAll ? ' show-label' : '') + '" data-stage="' + sp.stageId + '" data-idx="' + i + '" style="cursor:pointer" onclick="App.mapClick(\'' + sp.stageId + '\',' + i + ')">' +
+        '<title>' + esc(sp.name) + ' · ' + esc(sp.stageName || '') + '</title>' +
+        '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="6" fill="' + color + '" stroke="#fff" stroke-width="2"/>' +
+        '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="14" fill="transparent"/>' +
+        '<text class="spot-label" pointer-events="none" font-size="11" stroke-width="2.4" x="' + p[0] + '" y="' + (p[1] - 10) + '">' + esc(label) + '</text>' +
+      '</g>';
     }).join('');
   }
 
   function renderSpotList(stageId) {
     const list = collectSpots(stageId);
+    renderSpotEntry(null);
     $('#spot-list').innerHTML = list.map((sp, i) => `
       <div class="spot-item" id="spot-item-${i}" onclick="App.mapClick('${sp.stageId}',${i})">
         <div><span class="si-name">📍 ${esc(sp.name)}</span><span class="si-stage">${esc(sp.stageName)}</span></div>
@@ -529,19 +856,44 @@
       </div>`).join('');
   }
 
+  function renderSpotEntry(sp) {
+    const host = document.getElementById('spot-entry');
+    if (!host) return;
+    if (!sp) { host.innerHTML = ''; return; }
+    const stage = window.STAGE_BY_ID[sp.stageId] || {};
+    const q = encodeURIComponent(shortSpotName(sp.name) || sp.name);
+    host.innerHTML =
+      '<article class="spot-entry-card">' +
+        '<div class="se-kicker">地名词条</div>' +
+        '<h4 class="se-name">' + esc(sp.name) + '</h4>' +
+        '<div class="se-meta">' + esc(stage.emoji || '') + ' ' + esc(sp.stageName || '') +
+          (stage.range ? ' · ' + esc(stage.range) : '') +
+          (sp.lat != null ? ' · ' + sp.lat.toFixed(2) + '°N, ' + sp.lng.toFixed(2) + '°E' : '') + '</div>' +
+        '<p class="se-desc">' + esc(sp.desc || '这个地点还没有单独介绍，可以先去它所在的时代页看看。') + '</p>' +
+        '<div class="se-actions">' +
+          '<button type="button" class="btn-ghost se-btn" onclick="App.openStage(\'' + sp.stageId + '\')">📖 打开时代页</button>' +
+          '<a class="se-link" href="https://baike.baidu.com/item/' + q + '" target="_blank" rel="noopener">百度百科 ↗</a>' +
+          '<a class="se-link" href="' + GE(sp.lat, sp.lng) + '" target="_blank" rel="noopener">🌍 地球定位</a>' +
+        '</div>' +
+      '</article>';
+  }
   function mapClick(stageId, idx) {
-    // 高亮点位
+    if (window.__mapSuppressClick) return;
+    const list = collectSpots(mapFilterStage);
+    const sp = list[idx];
     $$('.map-spot').forEach(g => {
-      g.classList.remove('active');
+      const on = g.dataset.stage === String(stageId) && String(g.dataset.idx) === String(idx);
+      g.classList.toggle('active', on);
       const c = g.querySelector('circle');
-      if (c) { c.setAttribute('r', g.dataset.stage === stageId && g.dataset.idx == idx ? 10 : 7); }
+      if (c) c.setAttribute('r', spotRadius(on, g.ownerSVGElement).toFixed(2));
     });
     const item = $('#spot-item-' + idx);
     if (item) {
-      item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       $$('.spot-item').forEach(x => x.classList.remove('active'));
       item.classList.add('active');
     }
+    renderSpotEntry(sp);
   }
 
   /* ================= 学习小助手：感知 → 分析 → 自动反馈 ================= */
@@ -901,6 +1253,11 @@
     showMap: () => showView('map', {}),
     showQuiz: () => showView('quiz'),
     mapClick,
+    openMapYear,
+    showMuseum: () => showView('museum'),
+    filterMuseums,
+    mapZoom: (f) => mapZoom(f),
+    mapReset,
     route: (id) => { renderRoute(id); },
     search, searchClose, searchJump,
     answer,
