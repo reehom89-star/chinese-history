@@ -2,6 +2,9 @@
 
 从盘古开天辟地的神话，到此时此刻的新时代 —— 一部可以「看、读、玩」的中国历史网站。
 
+🌐 **在线访问**：https://reehom89-star.github.io/chinese-history/
+（仓库：https://github.com/reehom89-star/chinese-history ）
+
 > 为「嘻嘻」制作 · 纯静态站点，无需安装任何依赖，双击 `index.html` 即可使用。
 
 ## ✨ 功能
