@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华夏五千年 · 中国历史百科</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4D6D'/><text x='50' y='72' font-size='58' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-weight='bold'>华</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ 顶部导航 ============ -->
+  <header class="topbar">
+    <div class="brand" onclick="App.goHome()">
+      <div class="seal">华</div>
+      <div>
+        <div class="title font-kai">华夏五千年</div>
+        <div class="sub">中国历史百科 · 从盘古开天到新时代</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a data-view="home" class="active" onclick="App.goHome()">🏮 时间轴</a>
+      <a data-view="map" onclick="App.showMap()">🗺️ 地图</a>
+      <a data-view="quiz" onclick="App.showQuiz()">🎯 问答</a>
+    </nav>
+    <div class="search-box">
+      <input id="search-input" type="text" placeholder="🔍 搜故事 / 人物 / 成语…" autocomplete="off"
+             oninput="App.search(this.value)" onfocus="App.search(this.value)" onblur="setTimeout(()=>App.searchClose(),180)">
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </header>
+
+  <!-- ============ 首页：时间轴 ============ -->
+  <section class="view active" id="view-home">
+    <div class="hero-banner">
+      <svg class="hero-doodle doodle-sun" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="20" fill="#FFD447" stroke="#2D1E2F" stroke-width="4"/>
+        <g stroke="#FF9F1C" stroke-width="5" stroke-linecap="round">
+          <line x1="50" y1="6" x2="50" y2="18"/><line x1="50" y1="82" x2="50" y2="94"/>
+          <line x1="6" y1="50" x2="18" y2="50"/><line x1="82" y1="50" x2="94" y2="50"/>
+          <line x1="19" y1="19" x2="27" y2="27"/><line x1="73" y1="73" x2="81" y2="81"/>
+          <line x1="19" y1="81" x2="27" y2="73"/><line x1="73" y1="27" x2="81" y2="19"/>
+        </g>
+      </svg>
+      <svg class="hero-doodle doodle-cloud1" viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#FFFFFF" stroke="#2D1E2F" stroke-width="4">
+          <ellipse cx="35" cy="40" rx="24" ry="16"/><ellipse cx="65" cy="28" rx="26" ry="20"/>
+          <ellipse cx="92" cy="42" rx="22" ry="14"/><rect x="24" y="34" width="80" height="20" rx="10"/>
+        </g>
+      </svg>
+      <svg class="hero-doodle doodle-cloud2" viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#FFE9A8" stroke="#2D1E2F" stroke-width="4">
+          <ellipse cx="35" cy="40" rx="24" ry="16"/><ellipse cx="65" cy="28" rx="26" ry="20"/>
+          <ellipse cx="92" cy="42" rx="22" ry="14"/><rect x="24" y="34" width="80" height="20" rx="10"/>
+        </g>
+      </svg>
+      <svg class="hero-doodle doodle-mtn" viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 130 L0 96 L90 40 L150 92 L210 30 L290 100 L360 52 L430 102 L520 44 L590 98 L660 50 L740 104 L810 48 L880 96 L960 40 L1030 92 L1100 36 L1200 100 L1200 130 Z" fill="#2EC4B6" stroke="#2D1E2F" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M0 130 L0 112 L120 70 L200 116 L300 74 L400 118 L520 78 L640 120 L760 80 L880 118 L1000 76 L1120 116 L1200 88 L1200 130 Z" fill="#9B5DE5" stroke="#2D1E2F" stroke-width="5" stroke-linejoin="round" opacity=".85"/>
+      </svg>
+      <div class="hero-inner">
+        <h1 class="font-kai">五<span class="accent">千</span>年<br class="mobile-br">华夏文明</h1>
+        <p><span class="pill">盘古开天</span> → <span class="pill">今天</span><br>故事 · 发明 · 人物 · 成语 · 地图 · 问答</p>
+      </div>
+    </div>
+    <div class="timeline-wrap">
+      <div class="tl" id="home-list"></div>
+    </div>
+    <div class="side-nav" id="side-nav"></div>
+  </section>
+
+  <!-- ============ 阶段详情 ============ -->
+  <section class="view" id="view-stage">
+    <div id="stage-body"></div>
+  </section>
+
+  <!-- ============ 交互地图 ============ -->
+  <section class="view" id="view-map">
+    <div class="map-view">
+      <svg class="page-doodle pd-ship" viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 70 L30 30 L95 30 L115 70 Z" fill="#FF4D6D" stroke="#2D1E2F" stroke-width="4" stroke-linejoin="round"/>
+        <line x1="50" y1="30" x2="50" y2="6" stroke="#2D1E2F" stroke-width="4"/>
+        <path d="M50 6 L62 22 L50 18 L38 22 Z" fill="#FFD447" stroke="#2D1E2F" stroke-width="3"/>
+        <line x1="30" y1="70" x2="115" y2="70" stroke="#2D1E2F" stroke-width="4"/>
+        <path d="M20 82 Q60 90 100 78" fill="none" stroke="#3A86FF" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div style="margin-bottom:16px;">
+        <h2 class="font-kai" style="font-size:26px;color:var(--ink);letter-spacing:2px;">🗺️ 华夏地理足迹</h2>
+        <p style="color:var(--text-light);font-size:13.5px;margin-top:6px;">点击地图上的点位或右侧列表，看看每个历史大事件发生在祖国大地的哪个角落</p>
+      </div>
+      <div class="map-layout">
+        <div class="map-box">
+          <div class="map-filters" id="map-filters"></div>
+          <div class="map-routes" id="map-routes"></div>
+          <div id="map-svg"></div>
+          <div class="map-legend">
+            <span class="lg"><span class="lg-dot" style="background:#F6E7CF"></span> 现代中国</span>
+            <span class="lg"><span class="lg-dot" style="background:#C8452E"></span> 历史地点</span>
+            <span class="lg"><span class="lg-dot" style="background:#C8452E;border:2px dashed #C8452E"></span> 朝代疆域（选中阶段时显示）</span>
+            <span class="lg">🖱️ 点击探索</span>
+          </div>
+          <div id="dynasty-note" style="margin-top:10px;min-height:0;"></div>
+        </div>
+        <div class="map-side">
+          <h3 id="map-side-title">🗺️ 全部地理足迹</h3>
+          <div id="route-detail"></div>
+          <div class="spot-list" id="spot-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 趣味问答 ============ -->
+  <section class="view" id="view-quiz">
+    <div class="quiz-view">
+      <svg class="page-doodle pd-star" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+        <path d="M45 6 L55 34 L84 34 L61 52 L70 81 L45 63 L20 81 L29 52 L6 34 L35 34 Z" fill="#FFD447" stroke="#2D1E2F" stroke-width="4" stroke-linejoin="round"/>
+      </svg>
+      <div class="quiz-top">
+        <h2 class="font-kai">🎯 趣味问答</h2>
+        <div class="quiz-progress" id="quiz-progress"></div>
+      </div>
+      <div class="quiz-mode" id="quiz-modes"></div>
+      <div class="quiz-bar"><i id="quiz-bar-fill" style="width:0%"></i></div>
+      <div id="quiz-card-wrap">
+        <div class="quiz-card" id="quiz-card"></div>
+      </div>
+      <div class="quiz-result" id="quiz-result"></div>
+    </div>
+  </section>
+
+  <!-- ============ 页脚 ============ -->
+  <footer class="footer">
+    <div class="clouds">☁️ 🏔️ ☁️</div>
+    <div>华夏五千年 · 中国历史百科 — 史实内容参考《史记》《资治通鉴》等通行史书与通史教材整理</div>
+    <div style="margin-top:6px;">为「嘻嘻」制作 ❤️ 愿你在历史的长河里遨游愉快</div>
+  </footer>
+</div>
+
+<script src="js/data/core.js"></script>
+<script src="js/data/stage01-03.js"></script>
+<script src="js/data/stage04-06.js"></script>
+<script src="js/data/stage07-09.js"></script>
+<script src="js/data/stage10-12.js"></script>
+<script src="js/data/china.js"></script>
+<script src="js/data/territories.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
